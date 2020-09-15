@@ -49,7 +49,7 @@ def plot_overlaps(w1s, w2s, overlap_x_data=None, filename='overlap.mp4'):
     if ext == '.gif':
         animation.save(filename, writer='pillow')
     elif ext == '.mp4':
-        animation.save(filename)
+        animation.save(filename, writer='ffmpeg')
     else:
         raise ValueError(f'Invalid Extension {ext}')
     print(f'File saved at {filename}')

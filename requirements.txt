@@ -5,3 +5,5 @@ pillow
 gwpy
 lalsuite
 ffmpeg
+matplotlib
+numpy
