@@ -2,3 +2,5 @@ bilby
 celluloid
 pytest
 pillow
+gwpy
+lalsuite
