@@ -9,9 +9,8 @@ import bilby.gw.utils as utils
 import numpy as np
 from matplotlib import pyplot as plt
 
-from .waveform import Waveform, plot_multiple_waveform_objects
+from .waveform import Waveform, plot_multiple_waveform_objects, POLARISATION
 
-POL = ['cross', 'plus']
 
 
 def get_zero_noise_psd():
@@ -43,8 +42,8 @@ def compute_overlap(wf1: Waveform, wf2: Waveform, psd=None):
     freq, dur = wf1.frequency, wf1.duration
 
     psd_interp = psd.power_spectral_density_interpolated(freq)
-    a = {p: wf1.frequency_domain_signal[p] for p in POL}
-    b = {p: wf2.frequency_domain_signal[p] for p in POL}
+    a = {p: wf1.frequency_domain_signal[p] for p in POLARISATION}
+    b = {p: wf2.frequency_domain_signal[p] for p in POLARISATION}
 
     # Doing the calculation
     a = a["plus"] + a["cross"]
@@ -53,7 +52,10 @@ def compute_overlap(wf1: Waveform, wf2: Waveform, psd=None):
     inner_b = utils.noise_weighted_inner_product(b, b, psd_interp, dur)
     inner_ab = utils.noise_weighted_inner_product(a, b, psd_interp, dur)
     overlap = inner_ab / np.sqrt(inner_a * inner_b)
-    return overlap.real
+    overlap = overlap.real
+    if round(overlap,2) > 1 or round(overlap,2) < -1:
+        raise ValueError(f"Overlap of {overlap} is out of bound [-1, 1]")
+    return overlap
 
 
 def get_snr_for_overlap(overlap):

@@ -10,15 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bilby.gw.detector.strain_data import InterferometerStrainData
 from matplotlib.ticker import (AutoMinorLocator)
+from copy import deepcopy
 
 STRAIN_LABEL = r'Strain [strain/$\sqrt{\rm Hz}$]'
 TIME_LABEL = r'Time (s)'
 FREQ_LABEL = r'Frequency [Hz]'
+POLARISATION = ['cross', 'plus']
+DEFAULT_SAMPLING_FREQ = 2048
 
 
 class Waveform:
     def __init__(self, time, time_domain_signal, frequency, frequency_domain_signal,
-                 approximant, parameters, ):
+                 approximant, parameters, sampling_frequency):
         """
 
         :param time: ndarray of time
@@ -40,10 +43,13 @@ class Waveform:
         self.duration = max(time)
         self.min_fidx = np.where(self.frequency >= self.strain.minimum_frequency)[0][0]
         self.max_fidx = np.where(self.frequency >= self.strain.maximum_frequency)[0][0]
+        self.sampling_frequency = sampling_frequency
+        # update time domain signal
+        self.set_time_domain_signal_from_frequency()
 
     @classmethod
     def inject_signal(cls, injection_parameters, approximant='IMRPhenomPv2', duration=4,
-                      sampling_frequency=2048, reference_frequency=50):
+                      sampling_frequency=DEFAULT_SAMPLING_FREQ, reference_frequency=50):
         """Generates strain and time data for a set of injection parameters"""
         generator_args = dict(
             duration=duration,
@@ -67,7 +73,32 @@ class Waveform:
             frequency_domain_signal=freq_signal,
             approximant=approximant,
             parameters=injection_parameters,
+            sampling_frequency=sampling_frequency
         )
+
+    def time_shift(self, amount):
+        # time shift
+        shift_factor = -2j * np.pi * (self.duration + amount) * self.frequency
+        self.frequency_domain_signal = {
+            key: self.frequency_domain_signal[key] * np.exp(shift_factor)
+            for key in POLARISATION
+        }
+        self.set_time_domain_signal_from_frequency()
+
+    def set_time_domain_signal_from_frequency(self):
+        self.time_domain_signal = {
+            key: bilby.core.utils.infft(
+                self.frequency_domain_signal[key], self.sampling_frequency)
+            for key in POLARISATION
+        }
+
+    def phase_shift(self, amount):
+        # phase shift
+        self.frequency_domain_signal = {
+            key: self.frequency_domain_signal[key] * np.exp(-2j * amount)
+            for key in POLARISATION
+        }
+        self.set_time_domain_signal_from_frequency()
 
     def plot_time_domain_data(self, ax=None, label=None, color=None):
         if ax is None:
@@ -105,12 +136,19 @@ class Waveform:
             freq_data=freq_data, df=df)
         if color:
             ax.loglog(self.strain.frequency_array[self.strain.frequency_mask],
-                  asd[self.strain.frequency_mask], label=label, color=color)
+                      asd[self.strain.frequency_mask], label=label, color=color)
         else:
             ax.loglog(self.strain.frequency_array[self.strain.frequency_mask],
                       asd[self.strain.frequency_mask], label=label)
         ax.set_xlim(left=10, right=300)
         return ax
+
+    def __deepcopy__(self, memodict={}):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v))
+        return result
 
 
 def plot_multiple_waveform_objects(waveform_objects, freq_domain=False,

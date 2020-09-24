@@ -1,7 +1,9 @@
+import copy
 import os
 import unittest
-import shutil
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 from gw_waveform_overlapper.waveform import Waveform, plot_multiple_waveform_objects
 
@@ -32,9 +34,9 @@ class WaveformTest(unittest.TestCase):
         self.outdir = "tests/waveform_test"
         os.makedirs(self.outdir, exist_ok=True)
 
-    def tearDown(self):
-        if os.path.exists(self.outdir):
-            shutil.rmtree(self.outdir)
+    # def tearDown(self):
+    #     if os.path.exists(self.outdir):
+    #         shutil.rmtree(self.outdir)
 
     def test_waveform_constructor(self):
         wf = Waveform.inject_signal(self.params)
@@ -75,6 +77,57 @@ class WaveformTest(unittest.TestCase):
             filename=path
         )
         self.assertTrue(os.path.exists(path))
+
+    def test_time_shift(self):
+        timeshift_amount = -0.3
+        wf = Waveform.inject_signal(self.params)
+        fig, axes = plt.subplots(1, 1)
+        wf.plot_time_domain_data(axes, label="Before Shifting", color="red")
+        before = wf.time_domain_signal
+        wf.time_shift(-0.3)
+        after = wf.time_domain_signal
+        axes = wf.plot_time_domain_data(axes, label="After Shifting", color="blue")
+        axes.legend()
+        plt.suptitle(f"Timeshift by {timeshift_amount}")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.outdir, "timeshift.png"))
+        residuals = {k: np.subtract(after[k], before[k]) for k in ['cross', 'plus']}
+        self.assertNotEqual(sum(residuals['cross']), 0)
+        self.assertNotEqual(sum(residuals['plus']), 0)
+
+    def test_phase_shift(self):
+        phase_shift_amount = np.pi / 2
+        wf = Waveform.inject_signal(self.params)
+        fig, axes = plt.subplots(1, 1)
+        wf.plot_time_domain_data(axes, label="Before Shifting", color="red")
+        before = wf.time_domain_signal
+        wf.phase_shift(phase_shift_amount)
+        after = wf.time_domain_signal
+        axes = wf.plot_time_domain_data(axes, label="After Shifting", color="blue")
+        axes.legend()
+        plt.suptitle(f"Phaseshift by {phase_shift_amount:.2f}")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.outdir, "phaseshift.png"))
+        residuals = {k: np.subtract(after[k], before[k]) for k in ['cross', 'plus']}
+        self.assertNotEqual(sum(residuals['cross']), 0)
+        self.assertNotEqual(sum(residuals['plus']), 0)
+
+    def test_copy(self):
+        wf = Waveform.inject_signal(self.params)
+        wf2 = copy.deepcopy(wf)
+
+        residuals = {k: np.subtract(wf.time_domain_signal[k], wf2.time_domain_signal[k])
+                     for k in ['cross', 'plus']}
+
+        self.assertEqual(sum(residuals['cross']), 0)
+        self.assertEqual(sum(residuals['plus']), 0)
+
+        wf.time_shift(2)
+        residuals = {k: np.subtract(wf.time_domain_signal[k], wf2.time_domain_signal[k])
+                     for k in ['cross', 'plus']}
+
+        self.assertNotEqual(sum(residuals['cross']), 0)
+        self.assertNotEqual(sum(residuals['plus']), 0)
 
 
 if __name__ == '__main__':

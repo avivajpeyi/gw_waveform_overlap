@@ -3,6 +3,8 @@
 
 This package helps users inject and study the overlap between GW waveforms. 
 
+These scripts were adapted from Isobel Romero Shaw's PyEcentricity Package 
+
 
 Small Overlap |  Complete Overlap
 :-------------------------:|:-------------------------:
