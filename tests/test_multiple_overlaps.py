@@ -23,7 +23,7 @@ class MultipleOverlapsTest(unittest.TestCase):
             theta_jn=0.9614,
             psi=1.6831,
             phase=5.2220,
-            geocent_time=2,
+            geocent_time=0,
             ra=0.9978,
             dec=-0.4476
         )

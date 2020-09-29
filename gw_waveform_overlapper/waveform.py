@@ -4,19 +4,21 @@ A file for generating waveforms and related objects for the pycentricity package
 
 """
 
+from copy import deepcopy
+
 import bilby
 import bilby.gw.utils as gwutils
 import matplotlib.pyplot as plt
 import numpy as np
 from bilby.gw.detector.strain_data import InterferometerStrainData
 from matplotlib.ticker import (AutoMinorLocator)
-from copy import deepcopy
 
 STRAIN_LABEL = r'Strain [strain/$\sqrt{\rm Hz}$]'
 TIME_LABEL = r'Time (s)'
 FREQ_LABEL = r'Frequency [Hz]'
 POLARISATION = ['cross', 'plus']
 DEFAULT_SAMPLING_FREQ = 2048
+REF_FREQ = 50
 
 
 class Waveform:
@@ -29,6 +31,25 @@ class Waveform:
         :param approximant: str of the approximant for the signal
         :param parameters: dict of params
         """
+        self.time = None
+        self.time_domain_signal = None
+        self.frequency = None
+        self.frequency_domain_signal = None
+        self.approximant = None
+        self.parameters = None
+        self.strain = None
+        self.duration = None
+        self.min_fidx = None
+        self.max_fidx = None
+        self.sampling_frequency = None
+        self.reference_frequency = None
+        self.reset(time, time_domain_signal, frequency, frequency_domain_signal,
+                   approximant, parameters, sampling_frequency)
+        assert len(self.time) == len(self.time_domain_signal[
+                                         'cross']), f"{len(self.time)} {len(self.time_domain_signal['cross'])}"
+
+    def reset(self, time, time_domain_signal, frequency, frequency_domain_signal,
+              approximant, parameters, sampling_frequency):
         self.time = time
         self.time_domain_signal = time_domain_signal
         self.frequency = frequency
@@ -49,32 +70,17 @@ class Waveform:
 
     @classmethod
     def inject_signal(cls, injection_parameters, approximant='IMRPhenomPv2', duration=4,
-                      sampling_frequency=DEFAULT_SAMPLING_FREQ, reference_frequency=50):
+                      sampling_frequency=DEFAULT_SAMPLING_FREQ,
+                      reference_frequency=REF_FREQ):
         """Generates strain and time data for a set of injection parameters"""
-        generator_args = dict(
+        kwargs = create_injection(
             duration=duration,
             sampling_frequency=sampling_frequency,
-            frequency_domain_source_model=bilby.gw.source.lal_binary_black_hole,
-            parameters=injection_parameters,
-            waveform_arguments=dict(
-                reference_frequency=reference_frequency,
-                waveform_approximant=approximant
-            )
+            reference_frequency=reference_frequency,
+            injection_parameters=injection_parameters,
+            approximant=approximant
         )
-
-        generator = bilby.gw.WaveformGenerator(**generator_args)
-        signal = generator.time_domain_strain(injection_parameters)
-        freq_signal = generator.frequency_domain_strain(injection_parameters)
-
-        return cls(
-            time=generator.time_array,
-            time_domain_signal=signal,
-            frequency=generator.frequency_array,
-            frequency_domain_signal=freq_signal,
-            approximant=approximant,
-            parameters=injection_parameters,
-            sampling_frequency=sampling_frequency
-        )
+        return cls(**kwargs)
 
     def time_shift(self, amount):
         # time shift
@@ -174,3 +180,36 @@ def plot_multiple_waveform_objects(waveform_objects, freq_domain=False,
         fig.savefig(filename)
     else:
         return axes
+
+
+def create_injection(duration, sampling_frequency, injection_parameters,
+                     reference_frequency, approximant):
+    generator_args = dict(
+        duration=duration,
+        sampling_frequency=sampling_frequency,
+        frequency_domain_source_model=bilby.gw.source.lal_binary_black_hole,
+        parameters=injection_parameters,
+        waveform_arguments=dict(
+            reference_frequency=reference_frequency,
+            waveform_approximant=approximant
+        )
+    )
+
+    generator = bilby.gw.WaveformGenerator(**generator_args)
+    signal = generator.time_domain_strain(injection_parameters)
+    freq_signal = generator.frequency_domain_strain(injection_parameters)
+    return dict(
+        time=generator.time_array,
+        time_domain_signal=signal,
+        frequency=generator.frequency_array,
+        frequency_domain_signal=freq_signal,
+        approximant=approximant,
+        parameters=injection_parameters,
+        sampling_frequency=sampling_frequency
+    )
+
+
+def create_similar_waveform(wf: Waveform, new_param: dict):
+    param = wf.parameters
+    param.update(**new_param)
+    return Waveform.inject_signal(param)

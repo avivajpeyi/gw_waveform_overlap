@@ -5,7 +5,8 @@ import unittest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gw_waveform_overlapper.waveform import Waveform, plot_multiple_waveform_objects
+from gw_waveform_overlapper.waveform import Waveform, plot_multiple_waveform_objects, \
+    create_similar_waveform
 
 
 class WaveformTest(unittest.TestCase):
@@ -24,7 +25,7 @@ class WaveformTest(unittest.TestCase):
             theta_jn=0.9614,
             psi=1.6831,
             phase=5.2220,
-            geocent_time=1242424473.5880,
+            geocent_time=0,
             ra=0.9978,
             dec=-0.4476
         )
@@ -61,7 +62,6 @@ class WaveformTest(unittest.TestCase):
         axes[0].set_xlim(1.5, 2.5)
         axes[1] = wf.plot_frequency_domain_data(axes[1], label="Waveform1")
         axes[1] = wf2.plot_frequency_domain_data(axes[1], label="Waveform2")
-
         path = os.path.join(self.outdir, "freq_waveforms.png")
         plt.savefig(path)
         self.assertTrue(os.path.exists(path))
@@ -128,6 +128,13 @@ class WaveformTest(unittest.TestCase):
 
         self.assertNotEqual(sum(residuals['cross']), 0)
         self.assertNotEqual(sum(residuals['plus']), 0)
+
+    def test_zero_out_phase(self):
+        wf = Waveform.inject_signal(self.params)
+        self.assertNotEqual(wf.parameters['phase'], 0)
+
+        wf = create_similar_waveform(wf, dict(phase=0))
+        self.assertEqual(wf.parameters['phase'], 0)
 
 
 if __name__ == '__main__':

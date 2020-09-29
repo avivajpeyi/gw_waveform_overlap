@@ -22,7 +22,7 @@ class WaveformTest(unittest.TestCase):
             theta_jn=0.9614,
             psi=1.6831,
             phase=5.2220,
-            geocent_time=1242424473.5880,
+            geocent_time=0,
             ra=0.9978,
             dec=-0.4476
         )
